@@ -1,3 +1,4 @@
 include logs/*
+
 recursive-include data *
-recursive-include samples_and_snippets *
+recursive-include samples *

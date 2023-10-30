@@ -1,0 +1,4 @@
+Entry,30
+Entry,25
+Exit,21
+Exit,20

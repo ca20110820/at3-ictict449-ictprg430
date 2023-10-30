@@ -16,5 +16,11 @@ setup(
             "smartpark = smartpark.main:main",
         ],
     },
-    python_requires=">=3.10"
+    package_data={
+        'smartpark': [
+            "settings/*.toml",
+            "settings/*.json"
+        ]},
+    python_requires=">=3.10",
+    include_package_data=True
 )
