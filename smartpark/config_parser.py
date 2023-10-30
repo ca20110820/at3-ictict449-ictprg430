@@ -35,8 +35,27 @@ import pkg_resources
 
 def parse_config(config_filepath) -> dict:
     """Parse the config file and return the values as a dictionary"""
-    pass
+    with open(config_filepath, "r") as file:
+        config = toml.load(file)
+
+    config = config['config']
+
+    common_config = {k: v for k, v in config.items() if k in ["broker", "port", "topic-root"]}
+
+    sensor_config = common_config | config["sensor"]
+    carpark_config = common_config | config["carpark"]
+    display_config = common_config | config["display"]
+
+    return {"sensor": sensor_config, "carpark": carpark_config, "display": display_config}
+
+
+CONFIG_PATH = pkg_resources.resource_filename("smartpark", 'config/config.toml')
+SENSOR_CONFIG = parse_config(CONFIG_PATH)['sensor']
+CARPARK_CONFIG = parse_config(CONFIG_PATH)['carpark']
+DISPLAY_CONFIG = parse_config(CONFIG_PATH)['display']
 
 
 if __name__ == "__main__":
-    pass
+    print(parse_config(CONFIG_PATH)['sensor'])
+    print(parse_config(CONFIG_PATH)['carpark'])
+    print(parse_config(CONFIG_PATH)['display'])

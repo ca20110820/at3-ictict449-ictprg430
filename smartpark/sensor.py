@@ -6,6 +6,7 @@ import time
 import tkinter as tk
 
 from smartpark import mqtt_device
+from smartpark.config_parser import SENSOR_CONFIG
 
 
 class Sensor(mqtt_device.MqttDevice):
@@ -89,4 +90,4 @@ class CarDetector:
 
 
 if __name__ == '__main__':
-    pass
+    CarDetector(SENSOR_CONFIG, use_random_sensing=False)

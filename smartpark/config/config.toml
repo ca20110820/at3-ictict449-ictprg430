@@ -1,0 +1,21 @@
+[config]
+broker = "localhost"
+port = 1883
+topic-root = "lot"
+
+[config.sensor]
+name = "sensor"
+location = "moondaloop"
+topic-qualifier = "na"
+
+[config.carpark]
+name = "raf-park"
+location = "L306"
+topic-qualifier = "car-park"
+total-spaces = 10  # Fixed Number of Spaces/Parking Lots
+total-cars = 5  # Initial Number of Cars
+
+[config.display]
+name = "display"
+location = "L306"
+topic-qualifier = "na"

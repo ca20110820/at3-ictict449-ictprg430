@@ -3,6 +3,7 @@ from datetime import datetime
 from paho.mqtt.client import MQTTMessage
 
 from smartpark import mqtt_device
+from smartpark.config_parser import CARPARK_CONFIG
 
 
 class CarPark(mqtt_device.MqttDevice):

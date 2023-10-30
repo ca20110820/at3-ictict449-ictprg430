@@ -5,6 +5,7 @@ import tkinter as tk
 from typing import Iterable
 
 from smartpark import mqtt_device
+from smartpark.config_parser import DISPLAY_CONFIG
 
 
 class WindowedDisplay:
@@ -50,8 +51,7 @@ class WindowedDisplay:
         self.window.mainloop()
 
     def update(self, updated_values: dict):
-        """Update the values displayed in the GUI. Expects a dictionary with keys matching the field names passed to
-        the constructor."""
+        """Update the values displayed in the GUI. Expects a dictionary with keys matching the field names passed to the constructor."""
         for field in self.gui_elements:
             if field.startswith('lbl_field'):
                 field_value = field.replace('field', 'value')
@@ -59,6 +59,35 @@ class WindowedDisplay:
                     text=updated_values[self.gui_elements[field].cget('text').rstrip(self.SEP)])
         self.window.update()
 
+class CarParkDisplay(mqtt_device.MqttDevice):
+    """Provides a simple display of the car park status. This is a skeleton only. The class is designed to be customizable without requiring and understanding of tkinter or threading."""
+    fields = ['Available bays', 'Temperature', 'At']  # determines what fields appear in the UI
+
+    def __init__(self, inp_config):
+        super().__init__(inp_config)
+        self.client.on_message = self.on_message
+        self.client.subscribe('display')
+        self.msg_str = None  # Message string to be continuously updated
+
+        thread = threading.Thread(target=self.client.loop_forever, daemon=True)
+        thread.start()
+
+        self.window = WindowedDisplay('Moondalup', CarParkDisplay.fields)
+        self.window.show()
+
+    def on_message(self, client, userdata, msg):
+        data = msg.payload.decode()
+        self.msg_str = data.split(';')  # List[str] := ["<spaces>", "<temperature>", "<time>"]
+
+        field_values = dict(zip(CarParkDisplay.fields, [
+            f'{self.msg_str[0]}',
+            f'{self.msg_str[1]}℃',
+            f'{self.msg_str[2]}'
+        ]))
+
+        # When you get an update, refresh the display.
+        self.window.update(field_values)
+
 
 if __name__ == '__main__':
-    pass
+    CarParkDisplay(DISPLAY_CONFIG)
