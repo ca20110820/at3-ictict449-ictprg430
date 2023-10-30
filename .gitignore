@@ -7,8 +7,11 @@ venv/
 .idea/
 
 # Configurations in JSON
-**/*.json
-*.toml
+#**/*.json
+#*.toml
+
+logs/*.txt
+logs/*.json
 
 **/__pycache__/
 *.py[cod]
