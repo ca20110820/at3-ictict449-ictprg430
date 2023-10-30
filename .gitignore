@@ -1,0 +1,22 @@
+
+# Virtual Environments
+venv/
+.venv/
+
+# IDE
+.idea/
+
+# Configurations in JSON
+#**/*.json
+#*.toml
+
+**/__pycache__/
+*.py[cod]
+
+**/*.egg-info/
+
+*.pyc
+**/*.pyc
+
+.coverage
+.cache
