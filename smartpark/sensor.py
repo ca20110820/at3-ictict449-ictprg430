@@ -26,15 +26,22 @@ class Sensor(MqttDevice):
         pass
 
     @staticmethod
-    def get_time_now(*args, **kwargs):
+    def get_time_now(*args, **kwargs) -> datetime:
         """Utility Function to Get Datetime Now"""
         return datetime.datetime.now(*args, **kwargs)
+
+    @staticmethod
+    def get_time_now_as_str(*args, **kwargs) -> str:
+        """Utility Function to Get Datetime Now"""
+        return datetime.datetime.now(*args, **kwargs).strftime('%Y-%m-%d %H:%M:%S')
 
 
 class CarParkSensor(Sensor):
     # This class represent a sensor for the entrance (or exit) of the whole parking lot, not individual parking bays.
     # May be useful for keeping track of the number of cars (Parked/Un-parked) in the whole car park.
     # Not that there can be many entrance/exit points in a car park.
+    # A Car instance may be constructed in this class and can be sent and reconstructed over a network from subscribers.
+
     @property
     def temperature(self):
         """Implement Getter for Temperature, this can be random number or pulled from API"""
@@ -47,19 +54,20 @@ class CarParkSensor(Sensor):
         pass
 
     def on_car_entered(self):
-        topic = self.create_topic_qualifier("entry")
-        message = f"Enter,{self.get_time_now()},{self.temperature}"
+        topic = self.create_topic_qualifier("na")
+        message = f"Enter,{self.temperature},{self.get_time_now_as_str()}"
         self.client.publish(topic, message)
 
     def on_car_exited(self):
-        topic = self.create_topic_qualifier("exit")
-        message = f"Exit,{self.get_time_now()},{self.temperature}"
+        topic = self.create_topic_qualifier("na")
+        message = f"Exit,{self.temperature},{self.get_time_now_as_str()}"
         self.client.publish(topic, message)
 
 
 class BaySensor(Sensor):
     # This will add 2 types of events: Parked vs Un-parked
     # Equivalently, on_occupied() vs on_available() [OR on_car_parked() vs on_car_unparked()]
+    # Users may have to implement BaySensor as a Subscriber for when a Car decided to park in an available bay.
 
     IS_OCCUPIED: bool = False  # Optional Flag if a Parking Bay is Occupied or Available
     CAR: Car | None = None
@@ -78,12 +86,12 @@ class BaySensor(Sensor):
     def on_car_parked(self, car: Car | str):
         """Publish to subscribers"""
         # "Parked,<temperature>,<time>;<car_details_in_json_str>" Separated by ;
-        car = car if isinstance(car, Car) else Car.from_csv(car) if car[0] != "{" and car[
-            len(car) - 1] != "{" else Car.from_json(car)
+        car = car if isinstance(car, Car) else Car.from_json(car)
         car.car_parked()  # Update parked status
         my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-        my_message = f"Parked,{self.temperature},{self.get_time_now()};{car.to_json_format()}"
+        my_message = f"Parked,{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
         if not self.IS_OCCUPIED:
+            self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
             self.CAR = car
             self.IS_OCCUPIED = True
@@ -92,10 +100,11 @@ class BaySensor(Sensor):
 
     def on_car_unparked(self):
         """Publish to subscribers"""
-        self.CAR.is_parked = False
+        self.CAR.car_unparked()
         my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-        my_message = f"Unparked,{self.temperature},{self.get_time_now()};{self.CAR.to_json_format()}"
+        my_message = f"Unparked,{self.temperature},{self.get_time_now_as_str()};{self.CAR.to_json_format()}"
         if self.IS_OCCUPIED:
+            self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
             self.CAR = None
             self.IS_OCCUPIED = False
