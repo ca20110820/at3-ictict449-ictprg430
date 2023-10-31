@@ -75,9 +75,11 @@ class BaySensor(Sensor):
         # self.on_car_parked(<license_plate>, <car_model>)
         pass
 
-    def on_car_parked(self, car: Car):
+    def on_car_parked(self, car: Car | str):
         """Publish to subscribers"""
         # "Parked,<temperature>,<time>;<car_details_in_json_str>" Separated by ;
+        car = car if isinstance(car, Car) else Car.from_csv(car) if car[0] != "{" and car[
+            len(car) - 1] != "{" else Car.from_json(car)
         car.car_parked()  # Update parked status
         my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
         my_message = f"Parked,{self.temperature},{self.get_time_now()};{car.to_json_format()}"
