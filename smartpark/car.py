@@ -15,13 +15,11 @@ class Car(object):
     - exit_time
     - exit_temperature
     """
-    def __init__(self, license_plate: str, car_model: str, entry_temperature: int | float):
-        assert isinstance(entry_temperature, (int, float)), "Entry Temperature must be a valid numeric!"
-
+    def __init__(self, license_plate: str, car_model: str):
         self.license_plate = license_plate
         self.car_model = car_model
-        self.entry_time = datetime.now()  # .strftime("%Y-%m-%d %H:%M:%S")
-        self.entry_temperature = entry_temperature
+        self.entry_time: datetime | None = None  # .strftime("%Y-%m-%d %H:%M:%S")
+        self.entry_temperature: float | int | None = None
 
         self.is_parked: bool = False  # When car is instantiated (i.e. Entered) it not parked by default
 
@@ -34,7 +32,10 @@ class Car(object):
     def car_parked(self):
         self.is_parked = True
 
-    def car_exit(self, exit_temperature):
+    def car_entered(self):
+        pass
+
+    def car_exited(self, exit_temperature):
         assert isinstance(exit_temperature, (int, float)), "Entry Temperature must be a valid numeric!"
         self.exit_time = datetime.now()  # .strftime("%Y-%m-%d %H:%M:%S")
         self.is_parked = False
@@ -89,10 +90,10 @@ def generate_random_car_model(model_list):
     return random.choice(model_list)
 
 
-def generate_random_car(temperature, car_model_list):
+def generate_random_car(car_model_list):
     rnd_license_plate = generate_random_license_plate()
     rnd_car_model = generate_random_car_model(car_model_list)
-    return Car(rnd_license_plate, rnd_car_model, temperature)
+    return Car(rnd_license_plate, rnd_car_model)
 
 
 if __name__ == "__main__":
