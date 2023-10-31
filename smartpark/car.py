@@ -61,22 +61,22 @@ class Car(object):
 
     @classmethod
     def from_csv(cls, car_as_csv: str):
-        # TODO: Implement from_csv() alternative constructor
         car_str_list = car_as_csv.split(",")
 
-        temp_val = None if car_str_list[2] == "null" else datetime.strptime(car_str_list[2], "%Y-%m-%d %H:%M:%S")
-        car_str_list[2] = temp_val
-
-        temp_val = None if car_str_list[3] == "null" else datetime.strptime(car_str_list[3], "%Y-%m-%d %H:%M:%S")
-        car_str_list[3] = temp_val
-
-        temp_val = None if car_str_list[4] == "null" else float(car_str_list[4])
-        car_str_list[4] = temp_val
-
-        temp_val = None if car_str_list[5] == "null" else float(car_str_list[5])
-        car_str_list[5] = temp_val
-
-        car_str_list[6] = True if car_str_list[6] == "True" else False
+        for i in range(len(car_str_list)):
+            if i in [0, 1]:
+                continue
+            elif i in [2, 3]:
+                temp_val = None if car_str_list[i] == "null" else datetime.strptime(car_str_list[i],
+                                                                                    "%Y-%m-%d %H:%M:%S")
+                car_str_list[i] = temp_val
+            elif i in [4, 5]:
+                temp_val = None if car_str_list[i] == "null" else float(car_str_list[i])
+                car_str_list[i] = temp_val
+            elif i == 6:
+                car_str_list[i] = True if car_str_list[6] == "True" else False
+            else:
+                raise KeyError()
 
         car = cls(car_str_list[0], car_str_list[1])
         car.entry_time = car_str_list[2]
