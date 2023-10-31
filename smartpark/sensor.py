@@ -8,7 +8,7 @@ import random
 import tkinter as tk
 
 from smartpark.mqtt_device import MqttDevice
-from smartpark.car import Car
+from smartpark.car import Car, generate_random_license_plate, generate_random_car_model
 
 
 class Sensor(MqttDevice):
@@ -86,11 +86,12 @@ class BaySensor(Sensor):
     def on_car_parked(self, car: Car | str):
         """Publish to subscribers"""
         # "Parked,<temperature>,<time>;<car_details_in_json_str>" Separated by ;
-        car = car if isinstance(car, Car) else Car.from_json(car)
-        car.car_parked()  # Update parked status
-        my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-        my_message = f"Parked,{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
-        if not self.IS_OCCUPIED:
+
+        if not self.IS_OCCUPIED and self.CAR is None:
+            car = car if isinstance(car, Car) else Car.from_json(car)
+            car.car_parked()  # Update parked status
+            my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
+            my_message = f"Parked,{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
             self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
             self.CAR = car
@@ -100,16 +101,17 @@ class BaySensor(Sensor):
 
     def on_car_unparked(self):
         """Publish to subscribers"""
-        self.CAR.car_unparked()
-        my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-        my_message = f"Unparked,{self.temperature},{self.get_time_now_as_str()};{self.CAR.to_json_format()}"
-        if self.IS_OCCUPIED:
+        if self.IS_OCCUPIED and isinstance(self.CAR, Car):
+            self.CAR.car_unparked()
+            my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
+            my_message = f"Unparked,{self.temperature},{self.get_time_now_as_str()};{self.CAR.to_json_format()}"
             self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
+            print(self.CAR.to_json_format(indent=4))
             self.CAR = None
             self.IS_OCCUPIED = False
         else:
-            print(f"There are not car parked in Bay {self.name}!")
+            print(f"There are no car parked in Bay {self.name}!")
 
 
 class CLISensor(BaySensor):
@@ -130,7 +132,13 @@ class CLISensor(BaySensor):
         while True:
             detection = input("e or x> ")
             if detection == "e":
-                self.on_car_parked()
+                license_plate = generate_random_license_plate()
+                car_model = generate_random_car_model(["ModelA", "ModelB", "ModelC"])
+                new_car = Car(license_plate, car_model)
+                new_car.car_entered(self.temperature)
+                self.on_car_parked(new_car)
+                self.CAR.bay = self.name  # Attach the bay name/number/id to the Car as property
+                print(self.CAR.to_json_format(indent=4))
             elif detection == "x":
                 self.on_car_unparked()
             else:
@@ -233,8 +241,8 @@ if __name__ == '__main__':
                      "topic-root": "Moondaloop Park",
                      "topic-qualifier": "na"
                      }
-    # Topic: "Moondaloop Park/L306/bay_1/entry"
+    # Topic: "Moondaloop Park/L306/bay_1/na"
 
-    # CLISensor(sensor_config).start_sensing()
-    GUICarDetector(sensor_config).start_sensing()
+    CLISensor(sensor_config).start_sensing()
+    # GUICarDetector(sensor_config).start_sensing()
     # SimulatedSensor(sensor_config).start_sensing()
