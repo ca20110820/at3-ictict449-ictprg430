@@ -22,8 +22,8 @@ class ManagementCenter:
         self._entry_exit_time: datetime | None = None
 
     @classmethod
-    def from_int_bays_and_num_parking_pays(cls, num_parking_bays, enter_car: Callable[[Car], Optional],
-                                           exit_car: Callable[[float | int], Optional]):
+    def from_int_bays_and_num_parking_pays(cls, num_parking_bays, enter_car: Callable,
+                                           exit_car: Callable):
         instance = cls()
         instance.num_parking_bays = num_parking_bays
         instance.parking_bays = {i: None for i in range(1, num_parking_bays + 1)}
