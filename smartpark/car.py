@@ -143,33 +143,33 @@ class Car(object):
 
         return entry_or_exit_time.strftime("%Y-%m-%d %H:%M:%S")
 
+    @staticmethod
+    def generate_random_license_plate():
+        format_string = random.choice(["LLL-NNN", "NLL-NNN", "NLLL-NNN", "LL-NNNN", "TAXI-NNNN", "LLL-NNNN"])
 
-def generate_random_license_plate():
-    format_string = random.choice(["LLL-NNN", "NLL-NNN", "NLLL-NNN", "LL-NNNN", "TAXI-NNNN", "LLL-NNNN"])
+        letters = ''.join(random.choice(string.ascii_uppercase) for _ in range(format_string.count("L")))
+        numbers = ''.join(random.choice(string.digits) for _ in range(format_string.count("N")))
 
-    letters = ''.join(random.choice(string.ascii_uppercase) for _ in range(format_string.count("L")))
-    numbers = ''.join(random.choice(string.digits) for _ in range(format_string.count("N")))
+        license_plate = format_string
+        for char in format_string:
+            if char == "L":
+                license_plate = license_plate.replace(char, letters[0], 1)
+                letters = letters[1:]
+            elif char == "N":
+                license_plate = license_plate.replace(char, numbers[0], 1)
+                numbers = numbers[1:]
 
-    license_plate = format_string
-    for char in format_string:
-        if char == "L":
-            license_plate = license_plate.replace(char, letters[0], 1)
-            letters = letters[1:]
-        elif char == "N":
-            license_plate = license_plate.replace(char, numbers[0], 1)
-            numbers = numbers[1:]
+        return license_plate
 
-    return license_plate
+    @staticmethod
+    def generate_random_car_model(model_list):
+        return random.choice(model_list)
 
-
-def generate_random_car_model(model_list):
-    return random.choice(model_list)
-
-
-def generate_random_car(car_model_list):
-    rnd_license_plate = generate_random_license_plate()
-    rnd_car_model = generate_random_car_model(car_model_list)
-    return Car(rnd_license_plate, rnd_car_model)
+    @classmethod
+    def generate_random_car(cls, car_model_list):
+        rnd_license_plate = cls.generate_random_license_plate()
+        rnd_car_model = cls.generate_random_car_model(car_model_list)
+        return cls(rnd_license_plate, rnd_car_model)
 
 
 if __name__ == "__main__":
