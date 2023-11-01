@@ -1,4 +1,6 @@
 import random
+import time
+import threading
 from datetime import datetime
 from abc import ABC, abstractmethod
 from typing import List, Dict, Type, Hashable, Callable, Optional, Any, Tuple
@@ -308,30 +310,106 @@ class CarPark(MqttDevice):
 
 
 class SimulatedCarPark(CarPark):
+    QUIT_FLAG: bool = False
+
+    CAR_ENTERED: str | None = None
+
     def select_random_bay_topic(self) -> str:
         """Could be useful if publishing to BaySensors (i.e. BaySensors can be a Subscriber)"""
         return random.choice(self.sensor_topics)
 
     def start_serving(self):
-        pass
+        thread = threading.Thread(name=self.name, target=self.client.loop_forever)
+        thread.daemon = True
+        thread.start()
+
+        while not self.QUIT_FLAG:
+            try:
+                # Simulate Driver Finding a Parking Bay to Park
+                rnd_time_interval = random.randint(1, 3)
+                time.sleep(rnd_time_interval)
+                self.car_parked()
+            except KeyboardInterrupt:
+                self.QUIT_FLAG = True
+                exit()
 
     def publish_event(self):
-        pass
+        # "<spaces>;<temperature>;<time>"
+        print("=" * 100)
+        msg_str = f"{len(self.management_center.available_parking_bays)};" \
+                  f"{self.temperature};" \
+                  f"{self.management_center.entry_exit_time.strftime('%Y-%m-%d %H:%M:%S')}"
+
+        self.publish_to_display(msg_str)
+        print(self.management_center.get_carpark_details())
+        print("=" * 100)
+        print("\n")
 
     def on_car_entry(self):
-        pass
+        assert isinstance(self.CAR_ENTERED, str), "Forgotten to update CAR_ENTERED!"
+        car_entered = Car.from_json(self.CAR_ENTERED)
+        car_entered.car_entered(self.temperature)
+        self.management_center.enter_car(car_entered)
+        self.publish_event()
 
     def on_car_exit(self):
-        pass
+        car_exited: Car | None = self.management_center.exit_car(self.temperature)
+        if isinstance(car_exited, Car):
+            self.publish_event()
+        else:
+            print(f"The Result was None when Exited!")
 
     def car_parked(self):
-        pass
+        # Idea: Simulate by generating random interval and then invoke this method
+        # result: Tuple[<bay>, <car>] | None = self.management_center.car_parked()
+        # Publish the result to BaySensor
+        # Topic: <root>/<location>/<carpark_name>/parked
+        # Message: "<bay>;<car_json_str>"
 
-    def car_unparked(self):
-        pass
+        result: Tuple[Hashable, Car] | None = self.management_center.car_parked()
+
+        if result is None:
+            return
+
+        bay = result[0]
+        car_parked = result[1]
+        topic = self.create_topic_qualifier("parked")
+        message = f"{bay};{car_parked.to_json_format()}"
+        self.client.publish(topic, message)
+
+    def car_unparked(self, bay: Hashable, car: Car):
+        # Listening to BaySensor
+        # result: Car | None = self.management_center.car_unparked(bay, car)
+
+        result: Car | None = self.management_center.car_unparked(bay, car)
+
+        if result is None:
+            print(f"The Result of Unparking Car {car} in Bay {bay} is None!")
 
     def on_message(self, client: paho.Client, userdata: Any, message: paho.MQTTMessage):
-        pass
+        # We are listening and subscribed to: CarParkSensor Entry/Exit and BaySensor Unparked Topics
+        payload = message.payload.decode()
+
+        event_type = payload.split(",")[0]
+
+        if event_type == "Entry":
+            # Extract the Car
+            # Get Temperature
+            self.temperature = payload.split(";")[0].split(",")[1]
+            car = Car.from_json(payload.split(";")[1])
+            self.CAR_ENTERED = car
+            self.on_car_entry()
+        elif event_type == "Exit":
+            # Get Temperature
+            self.temperature = payload.split(",")[1]
+            self.on_car_exit()
+        elif event_type == "Unparked":
+            # Get Bay and Car
+            car = Car.from_json(payload.split(";")[1])
+            bay = payload.split(";")[0].split(",")[1]
+            self.car_unparked(bay, car)
+        else:
+            print(f"Received Unknown Message\nTopic: {message.topic}\nMessage: {payload}\n")
 
 
 if __name__ == '__main__':

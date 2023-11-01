@@ -94,7 +94,7 @@ class BaySensor(Sensor):
         if not self.IS_OCCUPIED and self.CAR is None:
             car.car_parked()  # Update parked status
             my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-            my_message = f"Parked,{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
+            my_message = f"Parked,{self.name},{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
             self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
             self.CAR = car
@@ -109,7 +109,8 @@ class BaySensor(Sensor):
         if self.IS_OCCUPIED and isinstance(self.CAR, Car):
             self.CAR.car_unparked()
             my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-            my_message = f"Unparked,{self.temperature},{self.get_time_now_as_str()};{self.CAR.to_json_format()}"
+            my_message = \
+                f"Unparked,{self.name},{self.temperature},{self.get_time_now_as_str()};{self.CAR.to_json_format()}"
             self.client.user_data_set(self.CAR)
             self.client.publish(my_topic, my_message)
             print(self.CAR.to_json_format(indent=4))
