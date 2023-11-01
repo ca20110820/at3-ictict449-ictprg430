@@ -1,6 +1,6 @@
 from datetime import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict, Type, Hashable
+from typing import List, Dict, Type, Hashable, Callable, Optional
 
 import json
 
@@ -33,10 +33,14 @@ class ManagementCenter:
         self._entry_exit_time: datetime | None = None
 
     @classmethod
-    def from_int_bays_and_num_parking_pays(cls, num_parking_bays):
+    def from_int_bays_and_num_parking_pays(cls, num_parking_bays, enter_car: Callable[[Car], Optional[None]],
+                                           exit_car: Callable[[float | int], Optional[None]]):
         instance = cls()
         instance.num_parking_bays = num_parking_bays
-        instance.parking_bays = {i: None for i in range(1, num_parking_bays+1)}
+        instance.parking_bays = {i: None for i in range(1, num_parking_bays + 1)}
+
+        instance.enter_car = enter_car
+        instance.exit_car = exit_car
 
         return instance
 
@@ -179,8 +183,13 @@ class SimulatedManagementCenter(ManagementCenter, IParkable):
 
 
 class CarPark(MqttDevice):
-    def __init__(self, config, management_center_type: Type[ManagementCenter], num_parking_bays, *args, **kwargs):
+    def __init__(self, config, management_center: ManagementCenter, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
+        self.management_center = management_center
+
+    @abstractmethod
+    def on_message(self):
+        pass
 
 
 if __name__ == '__main__':
