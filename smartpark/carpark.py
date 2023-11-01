@@ -171,7 +171,7 @@ class SimulatedManagementCenter(ManagementCenter):
             return None
 
         assert not car.is_parked, f"The selected car {car} to exit is currently parked!"
-        assert len([bay for bay, c in self.parking_bays.items() if c.license_plate == car.license_plate]) == 0
+        # assert len([bay for bay, c in self.parking_bays.items() if c.license_plate == car.license_plate]) == 0
 
         self.remove_car_by_license(car.license_plate)
 
@@ -191,8 +191,8 @@ class SimulatedManagementCenter(ManagementCenter):
             self.available_parking_bays) != 0 else None
 
         if car is not None and bay is not None:  # Matched
-            self.parking_bays[bay] = car
             car.car_parked()
+            self.parking_bays[bay] = car
             return bay, car
 
         return None
@@ -202,11 +202,17 @@ class SimulatedManagementCenter(ManagementCenter):
         if bay not in self.parking_bays.keys():
             print(f"Bay {bay} does not exist!")
             return None
-        if car.license_plate not in [c.license_plate for b, c in self.parking_bays.items()]:
-            print(f"Car {car} does not exist!")
+        if car.license_plate not in [c.license_plate for b, c in self.parking_bays.items() if isinstance(c, Car)]:
+            print(f"Car {car} does not exist in the parking bays!")
+            return None
+        if self.parking_bays[bay] is None:
+            print(f"There are no Car to parked in Bay {bay}")
+            return None
+        if self.parking_bays[bay].license_plate != car.license_plate:
+            print(f"The Parked Car {self.parking_bays[bay]} does not match {car}!")
             return None
 
-        self.parking_bays[car] = None
+        self.parking_bays[bay] = None
         car.car_unparked()
         return car
 
