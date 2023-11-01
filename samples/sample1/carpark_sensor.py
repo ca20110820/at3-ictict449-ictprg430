@@ -9,4 +9,6 @@ config = {"name": "MainEntrance",
           "topic-qualifier": "na"
           }
 
+# "Moondaloop Park/L306/MainEntrance/na"
+
 CLICarParkSensor(config).start_sensing()

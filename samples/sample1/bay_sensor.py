@@ -8,6 +8,8 @@ config = {"name": "bay_1",
           "topic-qualifier": "na"
           }
 
+# "Moondaloop Park/L306/bay_1/na"
+
 carpark_sub_topic = "Moondaloop Park/Moondaloop/CarPark/parked"
 
 CLIBaySensorSensor(config, carpark_sub_topic).start_sensing()

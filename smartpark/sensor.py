@@ -93,10 +93,10 @@ class BaySensor(Sensor):
 
         if not self.IS_OCCUPIED and self.CAR is None:
             car.car_parked()  # Update parked status
-            my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
-            my_message = f"Parked,{self.name},{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
-            self.client.user_data_set(self.CAR)
-            self.client.publish(my_topic, my_message)
+            # my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
+            # my_message = f"Parked,{self.name},{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
+            # self.client.user_data_set(self.CAR)
+            # self.client.publish(my_topic, my_message)
             self.CAR = car
             self.IS_OCCUPIED = True
         else:
@@ -148,16 +148,16 @@ class CLICarParkSensor(CarParkSensor):
     def on_car_entered(self):
         new_car: Car = Car.generate_random_car(["ModelA", "ModelB", "ModelC"])
         new_car.car_entered(self.temperature)
-        topic = self.create_topic_qualifier("na")
-        print(topic)
-        message = f"Enter,{self.temperature},{self.get_time_now_as_str()};{new_car.to_json_format()}"
-        self.client.publish(topic, message)
+        my_topic = self.create_topic_qualifier("na")
+        print(my_topic)
+        my_message = f"Enter,{self.temperature},{self.get_time_now_as_str()};{new_car.to_json_format()}"
+        self.client.publish(my_topic, my_message)
 
     def on_car_exited(self):
-        topic = self.create_topic_qualifier("na")
-        print(topic)
-        message = f"Exit,{self.temperature},{self.get_time_now_as_str()}"
-        self.client.publish(topic, message)
+        my_topic = self.create_topic_qualifier("na")
+        print(my_topic)
+        my_message = f"Exit,{self.temperature},{self.get_time_now_as_str()}"
+        self.client.publish(my_topic, my_message)
 
 
 class CLIBaySensorSensor(BaySensor):
@@ -197,10 +197,11 @@ class CLIBaySensorSensor(BaySensor):
 
     def on_message(self, client: paho.Client, userdata, message: paho.MQTTMessage):
         """Listening to Parked event"""
+        print("=" * 100)
         payload = message.payload.decode()
-        print(f"[{self.name}] Received Topic: {message.topic}")
-        print(f"[{self.name}] Received Message: {payload}")
-        print(f"[{self.name}] Received Data: {userdata}")
+        print(f"[{self.name}] Received Topic: \n{message.topic}")
+        print(f"[{self.name}] Received Message: \n{payload}")
+        print(f"[{self.name}] Received Data: \n{userdata}")
 
         # Topic: <root>/<location>/<carpark_name>/parked
         # Message: "<bay>;<car_json_str>"

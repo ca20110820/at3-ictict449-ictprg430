@@ -214,9 +214,11 @@ class SimulatedManagementCenter(ManagementCenter):
             print(f"The Parked Car {self.parking_bays[bay]} does not match {car}!")
             return None
 
-        self.parking_bays[bay] = None
-        car.car_unparked()
-        return car
+        # self.parking_bays[bay] = None
+        # car.car_unparked()
+        car_unparked = self.parking_bays.pop(bay)
+        car_unparked.car_unparked()
+        return car_unparked
 
 
 class CarPark(MqttDevice):
@@ -328,6 +330,7 @@ class SimulatedCarPark(CarPark):
                 # Simulate Driver Finding a Parking Bay to Park
                 rnd_time_interval = random.randint(1, 3)
                 time.sleep(rnd_time_interval)
+                print("Trying to park a car ...")
                 self.car_parked()
             except KeyboardInterrupt:
                 self.QUIT_FLAG = True
@@ -390,18 +393,20 @@ class SimulatedCarPark(CarPark):
         # We are listening and subscribed to: CarParkSensor Entry/Exit and BaySensor Unparked Topics
         payload = message.payload.decode()
 
-        event_type = payload.split(",")[0]
+        print(f"Received Topic: {message.topic}")
+        event_type = payload.split(",")[0].strip()
+        print(event_type)
 
-        if event_type == "Entry":
+        if event_type == "Enter":
             # Extract the Car
             # Get Temperature
-            self.temperature = payload.split(";")[0].split(",")[1]
-            car = Car.from_json(payload.split(";")[1])
-            self.CAR_ENTERED = car
+            self.temperature = float(payload.split(";")[0].split(",")[1])
+            # car = Car.from_json(payload.split(";")[1])
+            self.CAR_ENTERED = payload.split(";")[1]
             self.on_car_entry()
         elif event_type == "Exit":
             # Get Temperature
-            self.temperature = payload.split(",")[1]
+            self.temperature = float(payload.split(",")[1])
             self.on_car_exit()
         elif event_type == "Unparked":
             # Get Bay and Car
@@ -409,6 +414,7 @@ class SimulatedCarPark(CarPark):
             bay = payload.split(";")[0].split(",")[1]
             self.car_unparked(bay, car)
         else:
+            # print(f"Received Unknown Message\nTopic: {message.topic}\nMessage: {payload}\n")
             print(f"Received Unknown Message\nTopic: {message.topic}\nMessage: {payload}\n")
 
 
