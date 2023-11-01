@@ -1,6 +1,8 @@
 """"Demonstrates a simple implementation of an 'event' listener that triggers
 a publication via mqtt"""
 import datetime
+import threading
+
 import paho.mqtt.client as paho
 from abc import ABC, abstractmethod
 import time
@@ -46,7 +48,7 @@ class CarParkSensor(Sensor):
     def temperature(self):
         """Implement Getter for Temperature, this can be random number or pulled from API"""
         # TODO: Implement temperature
-        return random.randint(20, 30)
+        raise NotImplementedError()
 
     @abstractmethod
     def start_sensing(self, *args, **kwargs):
@@ -87,8 +89,9 @@ class BaySensor(Sensor):
         """Publish to subscribers"""
         # "Parked,<temperature>,<time>;<car_details_in_json_str>" Separated by ;
 
+        car = car if isinstance(car, Car) else Car.from_json(car)
+
         if not self.IS_OCCUPIED and self.CAR is None:
-            car = car if isinstance(car, Car) else Car.from_json(car)
             car.car_parked()  # Update parked status
             my_topic = self.create_topic_qualifier("na")  # Default topic-qualifier is 'na'
             my_message = f"Parked,{self.temperature},{self.get_time_now_as_str()};{car.to_json_format()}"
@@ -97,6 +100,8 @@ class BaySensor(Sensor):
             self.CAR = car
             self.IS_OCCUPIED = True
         else:
+            # Failed to Park the Car
+            self.client.publish(self.create_topic_qualifier("error"), f"{self.name};{car.to_json_format()}")
             print(f"Bay {self.name} is occupied!")
 
     def on_car_unparked(self):
@@ -111,12 +116,17 @@ class BaySensor(Sensor):
             self.CAR = None
             self.IS_OCCUPIED = False
         else:
+            self.client.publish(self.create_topic_qualifier("error"), f"IS_OCCUPIED={self.IS_OCCUPIED}")
             print(f"There are no car parked in Bay {self.name}!")
 
 
 class CLICarParkSensor(CarParkSensor):
 
     QUIT_FLAG = False
+
+    @property
+    def temperature(self):
+        return random.randint(20, 30)
 
     def start_sensing(self, *args, **kwargs):
         """Implement with Event loop"""
@@ -149,35 +159,60 @@ class CLICarParkSensor(CarParkSensor):
         self.client.publish(topic, message)
 
 
-# class CLIBaySensorSensor(BaySensor):
-#     def __init__(self, config, *args, **kwargs):
-#         super().__init__(config, *args, **kwargs)
-#
-#     @property
-#     def temperature(self):
-#         """Implement Getter for Temperature, this can be random or pulled from API"""
-#         return random.randint(20, 30)
-#
-#     def start_sensing(self, *args, **kwargs):
-#         """Must be implemented with infinite loop"""
-#         """ A blocking event loop that waits for detection events, in this
-#                         case Enter presses"""
-#         print("Press E when Car entered!")
-#         print("Press X when Car exited!\n")
-#         while True:
-#             detection = input("e or x> ")
-#             if detection == "e":
-#                 license_plate = generate_random_license_plate()
-#                 car_model = generate_random_car_model(["ModelA", "ModelB", "ModelC"])
-#                 new_car = Car(license_plate, car_model)
-#                 new_car.car_entered(self.temperature)
-#                 self.on_car_parked(new_car)
-#                 self.CAR.bay = self.name  # Attach the bay name/number/id to the Car as property
-#                 print(self.CAR.to_json_format(indent=4))
-#             elif detection == "x":
-#                 self.on_car_unparked()
-#             else:
-#                 continue
+class CLIBaySensorSensor(BaySensor):
+
+    QUIT_FLAG = False
+
+    def __init__(self, config, carpark_sub_topic, *args, **kwargs):
+        super().__init__(config, *args, **kwargs)
+
+        self.carpark_sub_topic = carpark_sub_topic
+        self.client.subscribe(self.carpark_sub_topic)
+        self.client.on_message = self.on_message
+
+        thread = threading.Thread(name=self.name, target=self.client.loop_forever)
+        thread.daemon = True
+
+        thread.start()
+        self.start_sensing()
+
+    @property
+    def temperature(self):
+        """Implement Getter for Temperature, this can be random or pulled from API"""
+        return random.randint(20, 30)
+
+    def start_sensing(self, *args, **kwargs):
+        """Listen to (User) Unparked Event"""
+        while not self.QUIT_FLAG:
+            print("=" * 100)
+            user_input = input("Press U to Unpark> ")
+            if user_input in ["U", "u", "unpark", "unparked"]:
+                self.on_car_unparked()
+            elif user_input in ["q", "Q", "quit"]:
+                self.QUIT_FLAG = True
+            else:
+                print("\n")
+                continue
+
+    def on_message(self, client: paho.Client, userdata, message: paho.MQTTMessage):
+        """Listening to Parked event"""
+        payload = message.payload.decode()
+        print(f"[{self.name}] Received Topic: {message.topic}")
+        print(f"[{self.name}] Received Message: {payload}")
+        print(f"[{self.name}] Received Data: {userdata}")
+
+        # Topic: <root>/<location>/<carpark_name>/parked
+        # Message: "<bay>;<car_json_str>"
+
+        msg = payload.split(";")
+        car_json_str = msg[1]
+
+        if msg[0] == self.name:
+            # self.on_car_parked(<car>|<car_json_str>)
+            car = Car.from_json(car_json_str)
+            self.on_car_parked(car)
+        else:
+            pass
 
 
 if __name__ == '__main__':
