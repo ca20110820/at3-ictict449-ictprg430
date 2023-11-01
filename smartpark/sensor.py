@@ -8,7 +8,7 @@ import random
 import tkinter as tk
 
 from smartpark.mqtt_device import MqttDevice
-from smartpark.car import Car, generate_random_license_plate, generate_random_car_model
+from smartpark.car import Car
 
 
 class Sensor(MqttDevice):
@@ -115,63 +115,90 @@ class BaySensor(Sensor):
 
 
 class CLICarParkSensor(CarParkSensor):
+
+    QUIT_FLAG = False
+
     def start_sensing(self, *args, **kwargs):
         """Implement with Event loop"""
-        pass
+        while not self.QUIT_FLAG:
+            enter_or_exit = input("E or X> ")
+            if enter_or_exit in ["e", "E", "enter"]:
+                self.on_car_entered()
+            elif enter_or_exit in ["x", "X", "exit"]:
+                self.on_car_exited()
+            elif enter_or_exit in ["q", "Q", "quit"]:
+                print("Good Bye!")
+                self.client.publish(self.create_topic_qualifier("quit"))
+                self.QUIT_FLAG = True
+            else:
+                print(f"Could not parse '{enter_or_exit}'! Please try again!\n")
+                continue
 
     def on_car_entered(self):
-
+        new_car: Car = Car.generate_random_car(["ModelA", "ModelB", "ModelC"])
+        new_car.car_entered(self.temperature)
         topic = self.create_topic_qualifier("na")
-        message = f"Enter,{self.temperature},{self.get_time_now_as_str()}"
+        print(topic)
+        message = f"Enter,{self.temperature},{self.get_time_now_as_str()};{new_car.to_json_format()}"
         self.client.publish(topic, message)
 
     def on_car_exited(self):
         topic = self.create_topic_qualifier("na")
+        print(topic)
         message = f"Exit,{self.temperature},{self.get_time_now_as_str()}"
         self.client.publish(topic, message)
 
 
-class CLIBaySensorSensor(BaySensor):
-    def __init__(self, config, *args, **kwargs):
-        super().__init__(config, *args, **kwargs)
-
-    @property
-    def temperature(self):
-        """Implement Getter for Temperature, this can be random or pulled from API"""
-        return random.randint(20, 30)
-
-    def start_sensing(self, *args, **kwargs):
-        """Must be implemented with infinite loop"""
-        """ A blocking event loop that waits for detection events, in this
-                        case Enter presses"""
-        print("Press E when Car entered!")
-        print("Press X when Car exited!\n")
-        while True:
-            detection = input("e or x> ")
-            if detection == "e":
-                license_plate = generate_random_license_plate()
-                car_model = generate_random_car_model(["ModelA", "ModelB", "ModelC"])
-                new_car = Car(license_plate, car_model)
-                new_car.car_entered(self.temperature)
-                self.on_car_parked(new_car)
-                self.CAR.bay = self.name  # Attach the bay name/number/id to the Car as property
-                print(self.CAR.to_json_format(indent=4))
-            elif detection == "x":
-                self.on_car_unparked()
-            else:
-                continue
+# class CLIBaySensorSensor(BaySensor):
+#     def __init__(self, config, *args, **kwargs):
+#         super().__init__(config, *args, **kwargs)
+#
+#     @property
+#     def temperature(self):
+#         """Implement Getter for Temperature, this can be random or pulled from API"""
+#         return random.randint(20, 30)
+#
+#     def start_sensing(self, *args, **kwargs):
+#         """Must be implemented with infinite loop"""
+#         """ A blocking event loop that waits for detection events, in this
+#                         case Enter presses"""
+#         print("Press E when Car entered!")
+#         print("Press X when Car exited!\n")
+#         while True:
+#             detection = input("e or x> ")
+#             if detection == "e":
+#                 license_plate = generate_random_license_plate()
+#                 car_model = generate_random_car_model(["ModelA", "ModelB", "ModelC"])
+#                 new_car = Car(license_plate, car_model)
+#                 new_car.car_entered(self.temperature)
+#                 self.on_car_parked(new_car)
+#                 self.CAR.bay = self.name  # Attach the bay name/number/id to the Car as property
+#                 print(self.CAR.to_json_format(indent=4))
+#             elif detection == "x":
+#                 self.on_car_unparked()
+#             else:
+#                 continue
 
 
 if __name__ == '__main__':
-    sensor_config = {"name": "bay_1",
-                     "location": "L306",
-                     "host": "localhost",
-                     "port": 1883,
-                     "topic-root": "Moondaloop Park",
-                     "topic-qualifier": "na"
-                     }
+    bay_sensor_config = {"name": "bay_1",
+                         "location": "L306",
+                         "host": "localhost",
+                         "port": 1883,
+                         "topic-root": "Moondaloop Park",
+                         "topic-qualifier": "na"
+                         }
+
+    carpark_sensor_config = {"name": "MainEntrance",
+                             "location": "L306",
+                             "host": "localhost",
+                             "port": 1883,
+                             "topic-root": "Moondaloop Park",
+                             "topic-qualifier": "na"
+                             }
     # Topic: "Moondaloop Park/L306/bay_1/na"
 
+    CLICarParkSensor(carpark_sensor_config).start_sensing()
     # CLISensor(sensor_config).start_sensing()
     # GUICarDetector(sensor_config).start_sensing()
     # SimulatedSensor(sensor_config).start_sensing()
