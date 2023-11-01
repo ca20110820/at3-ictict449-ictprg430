@@ -1,9 +1,11 @@
+import random
 from datetime import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict, Type, Hashable, Callable, Optional
+from typing import List, Dict, Type, Hashable, Callable, Optional, Any, Tuple
 
 import json
 
+import paho.mqtt.client as paho
 from paho.mqtt.client import MQTTMessage
 
 from smartpark.mqtt_device import MqttDevice
@@ -186,9 +188,116 @@ class CarPark(MqttDevice):
     def __init__(self, config, management_center: ManagementCenter, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
         self.management_center = management_center
+        self._temperature: int | float | None = None
+
+        self.sensor_topics: List[str] = []  # For Bay Sensors
+        self.carpark_sensors: List[
+            str] = []  # For Car Park Sensors. We may have at least 1 entrance (or exit for the whole car park)
+        self.display_topic = self.create_topic_qualifier("display")  # Default publication topic to Displays
+
+        self.client.on_message = self.on_message
+
+    @property
+    def temperature(self):
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value):
+        self._temperature = value
+
+    def publish_to_display(self, message: str):
+        self.client.publish(self.display_topic, message)
+
+    def add_topic_and_callback(self, topic: str, callback: Callable):
+        self.client.message_callback_add(topic, callback)
+
+    def add_sensor_topic(self, sensor_topic: str):
+        self.sensor_topics.append(sensor_topic)
+        self.client.subscribe(sensor_topic)
+
+    def add_sensor_topics(self, sensor_topics: List[Tuple[str, int]]):
+        for topic, _ in sensor_topics:
+            self.sensor_topics.append(topic)
+        self.client.subscribe(sensor_topics)
+
+    def add_carpark_sensor(self, carpark_sensor_topic: str):
+        self.carpark_sensors.append(carpark_sensor_topic)
+        self.client.subscribe(carpark_sensor_topic)
+
+    def add_carpark_sensors(self, carpark_sensor_topics: List[Tuple[str, int]]):
+        for topic, _ in carpark_sensor_topics:
+            self.carpark_sensors.append(topic)
+        self.client.subscribe(carpark_sensor_topics)
 
     @abstractmethod
-    def on_message(self):
+    def start_serving(self):
+        """Start listening to Sensors"""
+        # self.pubsub.client.loop_forever()  # Start a Blocking Thread
+        # self.pubsub.client.loop_start()  # Daemon thread, need to be closed with .loop_stop()
+        # self.pubsub.client.loop()  # Need to be called regularly with custom loop
+        pass
+
+    @abstractmethod
+    def publish_event(self):
+        """Publishing to Subscribed Displays.
+
+        Data to Collect:
+        ----------------
+        - Datetime
+        - Available Bays
+        - Temperature
+        - Number of Parked Cars
+        - Number of Un-parked Cars
+        - Total Number of Cars in the Car Park (both Parked and Un-parked)
+        - List of Available Bays
+        - List of Unavailable Bays
+        - Car Details who entered or exited
+        """
+        # self.display_publisher.publish(<message>)
+        pass
+
+    @abstractmethod
+    def on_car_entry(self):
+        """Update the Properties/Fields of ManagementCenter and Generating a Car instance for the
+        ManagementCenter"""
+        # self.management_center.enter_car(<Car>)
+        pass
+
+    @abstractmethod
+    def on_car_exit(self):
+        """Update the Properties/Fields of ManagementCenter"""
+        # self.management_center.exit_car(<temperature>)
+        pass
+
+    @abstractmethod
+    def on_message(self, client: paho.Client, userdata: Any, message: paho.MQTTMessage):
+        pass
+
+
+class SimulatedCarPark(CarPark, IParkable):
+    def select_random_bay_topic(self) -> str:
+        """Could be useful if publishing to BaySensors (i.e. BaySensors can be a Subscriber)"""
+        return random.choice(self.sensor_topics)
+
+    def start_serving(self):
+        pass
+
+    def publish_event(self):
+        pass
+
+    def on_car_entry(self):
+        pass
+
+    def on_car_exit(self):
+        pass
+
+    def car_parked(self):
+        pass
+
+    def car_unparked(self):
+        pass
+
+    def on_message(self, client: paho.Client, userdata: Any, message: paho.MQTTMessage):
         pass
 
 
