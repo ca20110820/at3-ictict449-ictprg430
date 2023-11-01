@@ -12,19 +12,6 @@ from smartpark.mqtt_device import MqttDevice
 from smartpark.car import Car
 
 
-class IParkable(ABC):
-
-    BAY: Hashable | None = None
-
-    @abstractmethod
-    def car_parked(self):
-        pass
-
-    @abstractmethod
-    def car_unparked(self):
-        pass
-
-
 class ManagementCenter:
     def __init__(self):
 
@@ -170,18 +157,58 @@ class ManagementCenter:
         self.cars = [car for car in self.cars if car.license_plate != license_plate]
 
 
-class SimulatedManagementCenter(ManagementCenter, IParkable):
+class SimulatedManagementCenter(ManagementCenter):
     def enter_car(self, car: Car):
-        pass
+        assert not car.is_parked, f"Car {car} is already parked!"
+        self.cars.append(car)
+        self.entry_exit_time = car.entry_time
+        # TODO: Logging, Data Collection, Publishing to Displays
 
-    def exit_car(self, temperature):
-        pass
+    def exit_car(self, temperature) -> Car | None:
+        # Select Random Unparked Car to exit (parked cars must unparked before exiting them)
+        car: Car | None = random.choice(self.unparked_cars) if len(self.unparked_cars) != 0 else None
+        if car is None:
+            return None
 
-    def car_parked(self):
-        pass
+        assert not car.is_parked, f"The selected car {car} to exit is currently parked!"
+        assert len([bay for bay, c in self.parking_bays.items() if c.license_plate == car.license_plate]) == 0
 
-    def car_unparked(self):
-        pass
+        self.remove_car_by_license(car.license_plate)
+
+        car.car_exited(temperature)
+        self.entry_exit_time = car.exit_time
+
+        # TODO: Logging, Data Collection, Publishing to Displays
+
+        return car
+
+    def car_parked(self) -> Tuple[Hashable, Car] | None:
+        # Select Random Unparked Car to Park., if applicable
+        # Selected Random Available Bay for the Car to be Parked, if applicable.
+
+        car: Car | None = random.choice(self.unparked_cars) if len(self.unparked_cars) != 0 else None
+        bay: Hashable | None = random.choice(self.available_parking_bays) if len(
+            self.available_parking_bays) != 0 else None
+
+        if car is not None and bay is not None:  # Matched
+            self.parking_bays[bay] = car
+            car.car_parked()
+            return bay, car
+
+        return None
+
+    def car_unparked(self, bay: Hashable, car: Car) -> Car | None:
+        # UI from BaySensor would decide which parked car to unpark
+        if bay not in self.parking_bays.keys():
+            print(f"Bay {bay} does not exist!")
+            return None
+        if car.license_plate not in [c.license_plate for b, c in self.parking_bays.items()]:
+            print(f"Car {car} does not exist!")
+            return None
+
+        self.parking_bays[car] = None
+        car.car_unparked()
+        return car
 
 
 class CarPark(MqttDevice):
@@ -274,7 +301,7 @@ class CarPark(MqttDevice):
         pass
 
 
-class SimulatedCarPark(CarPark, IParkable):
+class SimulatedCarPark(CarPark):
     def select_random_bay_topic(self) -> str:
         """Could be useful if publishing to BaySensors (i.e. BaySensors can be a Subscriber)"""
         return random.choice(self.sensor_topics)
