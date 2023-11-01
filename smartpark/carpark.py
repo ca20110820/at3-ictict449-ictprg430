@@ -1,25 +1,52 @@
 from datetime import datetime
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Type, Hashable
 
 import json
 
 from paho.mqtt.client import MQTTMessage
 
-from smartpark import mqtt_device
+from smartpark.mqtt_device import MqttDevice
 from smartpark.car import Car
 
 
-class ManagementCenter(ABC):
-    def __init__(self, num_parking_bays):
-        if num_parking_bays < 1:
-            raise ValueError("Max Parking Lot Capacity Cannot be Zero or Negative!")
+class IParkable(ABC):
 
-        self.num_parking_bays = num_parking_bays
-        self.parking_bays: Dict[str, Car | None] = {i: None for i in range(1, num_parking_bays+1)}
+    BAY: Hashable | None = None
+
+    @abstractmethod
+    def car_parked(self):
+        pass
+
+    @abstractmethod
+    def car_unparked(self):
+        pass
+
+
+class ManagementCenter:
+    def __init__(self):
+
+        self.num_parking_bays = 0
+        self.parking_bays: Dict[Hashable, Car | None] = {}
         self.cars: List[Car] = []  # List of all the Cars in the Car Park (Both Parked & Not Parked)
 
         self._entry_exit_time: datetime | None = None
+
+    @classmethod
+    def from_int_bays_and_num_parking_pays(cls, num_parking_bays):
+        instance = cls()
+        instance.num_parking_bays = num_parking_bays
+        instance.parking_bays = {i: None for i in range(1, num_parking_bays+1)}
+
+        return instance
+
+    def add_parking_bay(self, bay_name: Hashable):
+        self.parking_bays[bay_name] = None
+        self.num_parking_bays += 1
+
+    def add_parking_bays(self, *bays):
+        for bay in bays:
+            self.add_parking_bay(bay)
 
     @property
     def entry_exit_time(self):
@@ -38,11 +65,11 @@ class ManagementCenter(ABC):
         return len(self.available_parking_bays)
 
     @property
-    def available_parking_bays(self) -> List[str]:
+    def available_parking_bays(self) -> List[Hashable]:
         return [bay for bay, car in self.parking_bays.items() if car is None]
 
     @property
-    def unavailable_parking_bays(self) -> List[str]:
+    def unavailable_parking_bays(self) -> List[Hashable]:
         return [bay for bay, car in self.parking_bays.items() if car is not None]
 
     @property
@@ -135,6 +162,25 @@ class ManagementCenter(ABC):
 
     def remove_car_by_license(self, license_plate: str):
         self.cars = [car for car in self.cars if car.license_plate != license_plate]
+
+
+class SimulatedManagementCenter(ManagementCenter, IParkable):
+    def enter_car(self, car: Car):
+        pass
+
+    def exit_car(self, temperature):
+        pass
+
+    def car_parked(self):
+        pass
+
+    def car_unparked(self):
+        pass
+
+
+class CarPark(MqttDevice):
+    def __init__(self, config, management_center_type: Type[ManagementCenter], num_parking_bays, *args, **kwargs):
+        super().__init__(config, *args, **kwargs)
 
 
 if __name__ == '__main__':
