@@ -10,6 +10,8 @@ venv/
 #**/*.json
 #*.toml
 
+logs/
+
 **/__pycache__/
 *.py[cod]
 
